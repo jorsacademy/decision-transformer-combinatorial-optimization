@@ -4,7 +4,6 @@ import torch
 
 from dtco.models import BehaviorCloningPolicy, DecisionTransformerPolicy
 
-
 CONFIG = {
     "max_nodes": 7,
     "d_model": 32,
