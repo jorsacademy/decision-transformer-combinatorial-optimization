@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import json
+from collections.abc import Iterable
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import numpy as np
 import torch
@@ -30,7 +31,7 @@ class TSPTrajectory:
         return json.dumps(asdict(self), separators=(",", ":"))
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "TSPTrajectory":
+    def from_dict(cls, data: dict[str, Any]) -> TSPTrajectory:
         return cls(**data)
 
 
@@ -106,7 +107,9 @@ def generate_dataset(config: dict[str, Any]) -> list[TSPTrajectory]:
     trajectories: list[TSPTrajectory] = []
     for split_name in ("train", "validation", "test", "ood_test"):
         if split_name in data_cfg:
-            trajectories.extend(generate_split(split_name, data_cfg[split_name], behavior_cfg))
+            trajectories.extend(
+                generate_split(split_name, data_cfg[split_name], behavior_cfg)
+            )
     return trajectories
 
 
@@ -135,12 +138,16 @@ def save_jsonl(trajectories: Iterable[TSPTrajectory], path: str | Path) -> None:
 def load_jsonl(path: str | Path) -> list[TSPTrajectory]:
     with Path(path).open("r", encoding="utf-8") as handle:
         return [
-            TSPTrajectory.from_dict(json.loads(line)) for line in handle if line.strip()
+            TSPTrajectory.from_dict(json.loads(line))
+            for line in handle
+            if line.strip()
         ]
 
 
 class OfflineTrajectoryDataset(Dataset[dict[str, torch.Tensor]]):
-    def __init__(self, trajectories: list[TSPTrajectory], split: str, max_nodes: int) -> None:
+    def __init__(
+        self, trajectories: list[TSPTrajectory], split: str, max_nodes: int
+    ) -> None:
         self.trajectories = [t for t in trajectories if t.split == split]
         self.max_nodes = max_nodes
         if not self.trajectories:
@@ -173,7 +180,9 @@ class OfflineTrajectoryDataset(Dataset[dict[str, torch.Tensor]]):
             rtg[step] = float(trajectory.normalized_rtg[step])
             valid_steps[step] = True
             visited_mask[step] = ~node_mask
-            visited_mask[step, torch.tensor(tour[: step + 1], dtype=torch.long)] = True
+            visited_mask[
+                step, torch.tensor(tour[: step + 1], dtype=torch.long)
+            ] = True
 
         return {
             "coords": coords,
@@ -192,7 +201,9 @@ def summarize_dataset(trajectories: Iterable[TSPTrajectory]) -> dict[str, Any]:
     result: dict[str, Any] = {"trajectories": len(items), "splits": {}}
     for split in sorted({item.split for item in items}):
         split_items = [item for item in items if item.split == split]
-        lengths = np.asarray([item.tour_length for item in split_items], dtype=np.float64)
+        lengths = np.asarray(
+            [item.tour_length for item in split_items], dtype=np.float64
+        )
         unique_instances = len({item.instance_id for item in split_items})
         result["splits"][split] = {
             "instances": unique_instances,
