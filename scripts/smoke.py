@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 from dtco.data import assert_instance_disjoint, generate_dataset, save_jsonl
 from dtco.evaluate import run_benchmark
