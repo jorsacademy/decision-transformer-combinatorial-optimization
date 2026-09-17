@@ -168,19 +168,45 @@ def best_behavior_result(
     randomized_temperature: float,
     two_opt_max_passes: int,
 ) -> HeuristicResult:
+    """Best member of the offline behavior family with explicit search budget."""
     rng = np.random.default_rng(seed)
-    candidates = behavior_trajectories(
-        coords,
-        rng,
-        num_randomized=num_randomized,
-        randomized_temperature=randomized_temperature,
-        two_opt_max_passes=two_opt_max_passes,
+    candidates: list[HeuristicResult] = []
+    candidate_evaluations = 0
+    objective_evaluations = 0
+    improvements = 0
+
+    nn = nearest_neighbor(coords)
+    candidates.append(nn)
+    candidate_evaluations += nn.candidate_evaluations
+    objective_evaluations += nn.objective_evaluations
+    nn_improvements, nn_pair_checks = two_opt_trajectory(
+        coords, nn.tour, max_passes=two_opt_max_passes
     )
-    best = min((result for _, result in candidates), key=lambda result: result.length)
+    candidates.extend(nn_improvements)
+    candidate_evaluations += nn_pair_checks
+    objective_evaluations += len(nn_improvements)
+    improvements += len(nn_improvements)
+
+    for _ in range(num_randomized):
+        randomized = randomized_construction(
+            coords, rng, temperature=randomized_temperature
+        )
+        candidates.append(randomized)
+        candidate_evaluations += randomized.candidate_evaluations
+        objective_evaluations += randomized.objective_evaluations
+        local_improvements, pair_checks = two_opt_trajectory(
+            coords, randomized.tour, max_passes=two_opt_max_passes
+        )
+        candidates.extend(local_improvements)
+        candidate_evaluations += pair_checks
+        objective_evaluations += len(local_improvements)
+        improvements += len(local_improvements)
+
+    best = min(candidates, key=lambda result: result.length)
     return HeuristicResult(
         tour=best.tour.copy(),
         length=best.length,
-        candidate_evaluations=sum(result.candidate_evaluations for _, result in candidates),
-        objective_evaluations=sum(result.objective_evaluations for _, result in candidates),
-        improvements=sum(result.improvements for _, result in candidates),
+        candidate_evaluations=candidate_evaluations,
+        objective_evaluations=objective_evaluations,
+        improvements=improvements,
     )
